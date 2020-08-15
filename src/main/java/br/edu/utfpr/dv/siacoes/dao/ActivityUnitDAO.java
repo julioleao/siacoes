@@ -31,13 +31,9 @@ public class ActivityUnitDAO {
                 while (rs.next()) {
                     list.add(this.loadObject(rs));
                 }
-
                 return list;
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            } 
         }
-        return null;
     }
 
     public ActivityUnit findById(int id) throws SQLException {
@@ -54,10 +50,7 @@ public class ActivityUnitDAO {
                     return null;
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        return null;
     }
     
     /*Criado métodos insert() e update(), ambos com try-with-resources, individuais resolvendo
@@ -81,10 +74,7 @@ public class ActivityUnitDAO {
                 new UpdateEvent(conn).registerInsert(idUser, unit);
                 return unit.getIdActivityUnit();
             }
-        }catch (SQLException e) {
-            e.printStackTrace();
         }
-        return 0;
     }
     
     public int update(int idUser, ActivityUnit unit) throws SQLException {
@@ -101,10 +91,7 @@ public class ActivityUnitDAO {
             new UpdateEvent(conn).registerInsert(idUser, unit);
             return unit.getIdActivityUnit();
             
-        }catch (SQLException e) {
-            e.printStackTrace();
         }
-        return 0;
     }
 
     public int save(int idUser, ActivityUnit unit) throws SQLException {
@@ -127,5 +114,4 @@ public class ActivityUnitDAO {
 
         return unit;
     }
-
 }
