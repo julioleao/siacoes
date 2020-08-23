@@ -28,3 +28,5 @@ https2.txt
 https renew\.txt
 
 src/main/java/br/edu/utfpr/dv/siacoes/sign/SignatureKey.java
+/.apt_generated/
+/.apt_generated_tests/
