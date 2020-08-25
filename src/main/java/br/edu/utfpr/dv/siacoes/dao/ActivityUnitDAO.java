@@ -53,56 +53,44 @@ public class ActivityUnitDAO {
         }
     }
     
-    /*Criado métodos insert() e update(), ambos com try-with-resources, individuais resolvendo
-    estruturas copndicionais, if else, dentro do método save() e tornando a modularidade do código melhor*/
     
-    public int insert(int idUser, ActivityUnit unit) throws SQLException {
-        try (
-            Connection conn = ConnectionDAO.getInstance().getConnection();
-            PreparedStatement stmt = conn.prepareStatement("INSERT INTO activityunit(description, fillAmount, amountDescription) VALUES(?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
-        ){
-            stmt.setString(1, unit.getDescription());
-            stmt.setInt(2, (unit.isFillAmount() ? 1 : 0));
-            stmt.setString(3, unit.getAmountDescription());
-            stmt.execute();
-            
-            try (ResultSet rs = stmt.getGeneratedKeys()){
-                if (rs.next()) {
-                    unit.setIdActivityUnit(rs.getInt(1));
-                }
-
-                new UpdateEvent(conn).registerInsert(idUser, unit);
-                return unit.getIdActivityUnit();
-            }
-        }
-    }
-    
-    public int update(int idUser, ActivityUnit unit) throws SQLException {
-        try (
-            Connection conn = ConnectionDAO.getInstance().getConnection();
-            PreparedStatement stmt = conn.prepareStatement("UPDATE activityunit SET description=?, fillAmount=?, amountDescription=? WHERE idActivityUnit=?");
-        ){
-            stmt.setString(1, unit.getDescription());
-            stmt.setInt(2, (unit.isFillAmount() ? 1 : 0));
-            stmt.setString(3, unit.getAmountDescription());
-            stmt.setInt(4, unit.getIdActivityUnit());
-            stmt.execute();
-
-            new UpdateEvent(conn).registerInsert(idUser, unit);
-            return unit.getIdActivityUnit();
-            
-        }
-    }
-
     public int save(int idUser, ActivityUnit unit) throws SQLException {
-        boolean insert = (unit.getIdActivityUnit() == 0);
+    	boolean insert = (unit.getIdActivityUnit() == 0);
+		String query = null;
+		
+		if(insert){
+			query = "\"INSERT INTO activityunit(description, fillAmount, amountDescription) VALUES(?, ?, ?)\"" + ", Statement.RETURN_GENERATED_KEYS";
+		}else{
+			query = "UPDATE activityunit SET description=?, fillAmount=?, amountDescription=? WHERE idActivityUnit=?";
+		}
+		
+		try(
+			Connection conn = ConnectionDAO.getInstance().getConnection();
+			PreparedStatement stmt = conn.prepareStatement(query);
+		){
+			stmt.setString(1, unit.getDescription());
+			stmt.setInt(2, (unit.isFillAmount() ? 1 : 0));
+			stmt.setString(3, unit.getAmountDescription());
 
-        if (insert) {
-            return insert(idUser, unit);
-        } else {
-            return update(idUser, unit);
-        }
-    }
+			if(!insert){
+				stmt.setInt(4, unit.getIdActivityUnit());
+			}
+
+			stmt.execute();
+
+			if(insert){
+				try(ResultSet rs = stmt.getGeneratedKeys()){
+					if(rs.next()){
+						unit.setIdActivityUnit(rs.getInt(1));
+						new UpdateEvent(conn).registerInsert(idUser, unit);
+					} else {
+						new UpdateEvent(conn).registerUpdate(idUser, unit);
+					}
+				}
+			}
+			return unit.getIdActivityUnit();
+		}
+	}
 
     private ActivityUnit loadObject(ResultSet rs) throws SQLException {
         ActivityUnit unit = new ActivityUnit();
