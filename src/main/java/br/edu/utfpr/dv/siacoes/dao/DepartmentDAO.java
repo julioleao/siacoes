@@ -12,115 +12,111 @@ import java.util.List;
 import br.edu.utfpr.dv.siacoes.log.UpdateEvent;
 import br.edu.utfpr.dv.siacoes.model.Department;
 
-public class DepartmentDAO {
+public class DepartmentDAO extends TemplateDAO<Department> {
 
-	public Department findById(int id) throws SQLException{
-            try (
-                Connection conn = ConnectionDAO.getInstance().getConnection();
-                PreparedStatement stmt = conn.prepareStatement(
-                    "SELECT department.*, campus.name AS campusName " +
-                    "FROM department INNER JOIN campus ON campus.idCampus=department.idCampus " +
-                    "WHERE idDepartment = ?");
-            ){
-                stmt.setInt(1, id);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if(rs.next()){
-                        return this.loadObject(rs);
-                    }else{
-                        return null;
-                    }
-                }
-            } 
-        }
-	
-	public List<Department> listAll(boolean onlyActive) throws SQLException{
+	@Override
+	public String queryById() {
+		return ("SELECT department.*, campus.name AS campusName "
+				+ "FROM department INNER JOIN campus ON campus.idCampus=department.idCampus "
+				+ "WHERE idDepartment = ?");
+	}
 
-            try (
-                Connection conn = ConnectionDAO.getInstance().getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery("SELECT department.*, campus.name AS campusName " +
-                                                "FROM department INNER JOIN campus ON campus.idCampus=department.idCampus " + 
-                                                (onlyActive ? " WHERE department.active=1" : "") +
-                                                " ORDER BY department.name");
-            ) {                                    
-                List<Department> list = new ArrayList<Department>();
-                while(rs.next()){
-                    list.add(this.loadObject(rs));
-                }
-                return list;
-                
-            }   
-        }
-	
-	public List<Department> listByCampus(int idCampus, boolean onlyActive) throws SQLException{
-    
-            try (
-                Connection conn = ConnectionDAO.getInstance().getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery("SELECT department.*, campus.name AS campusName " +
-                                                "FROM department INNER JOIN campus ON campus.idCampus=department.idCampus " +
-                                                "WHERE department.idCampus=" + String.valueOf(idCampus) + (onlyActive ? " AND department.active=1" : "") +
-                                                " ORDER BY department.name");
-            ) {                            
-                List<Department> list = new ArrayList<Department>();
-                    while(rs.next()){
-                        list.add(this.loadObject(rs));                    
-                    }
-                return list;                        
-            }
-        }
-	
-    
-    public int save(int idUser, Department department) throws SQLException{
-    	boolean insert = (department.getIdDepartment() == 0);
-		String query = null;
-		
-		if(insert){
-			query = "\"INSERT INTO department(idCampus, name, logo, active, site, fullName, initials) VALUES(?, ?, ?, ?, ?, ?, ?)\"" + ", Statement.RETURN_GENERATED_KEYS";
-		}else{
-			query = "UPDATE department SET idCampus=?, name=?, logo=?, active=?, site=?, fullName=?, initials=? WHERE idDepartment=?";
-		}
+	public List<Department> listAll(boolean onlyActive) throws SQLException {
 
-		try(
-			Connection conn = ConnectionDAO.getInstance().getConnection();
-			PreparedStatement stmt = conn.prepareStatement(query);
+		try (Connection conn = ConnectionDAO.getInstance().getConnection(); Statement stmt = conn.createStatement();
+
 		) {
+			try (ResultSet rs = stmt.executeQuery("SELECT department.*, campus.name AS campusName "
+					+ "FROM department INNER JOIN campus ON campus.idCampus=department.idCampus "
+					+ (onlyActive ? " WHERE department.active=1" : "") + " ORDER BY department.name");) {
+				List<Department> list = new ArrayList<Department>();
+				while (rs.next()) {
+					list.add(this.loadObject(rs));
+				}
+				return list;
+			}
+		}
+	}
+
+	public List<Department> listByCampus(int idCampus, boolean onlyActive) throws SQLException {
+
+		try (Connection conn = ConnectionDAO.getInstance().getConnection(); Statement stmt = conn.createStatement();) {
+			try (ResultSet rs = stmt.executeQuery("SELECT department.*, campus.name AS campusName "
+					+ "FROM department INNER JOIN campus ON campus.idCampus=department.idCampus "
+					+ "WHERE department.idCampus=" + String.valueOf(idCampus)
+					+ (onlyActive ? " AND department.active=1" : "") + " ORDER BY department.name")) {
+				List<Department> list = new ArrayList<Department>();
+				while (rs.next()) {
+					list.add(this.loadObject(rs));
+				}
+				return list;
+			}
+		}
+	}
+
+	public int save(int idUser, Department department) throws SQLException {
+		boolean insert = (department.getIdDepartment() == 0);
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+
+		try {
+			conn = ConnectionDAO.getInstance().getConnection();
+
+			if (insert) {
+				stmt = conn.prepareStatement(
+						"INSERT INTO department(idCampus, name, logo, active, site, fullName, initials) VALUES(?, ?, ?, ?, ?, ?, ?)",
+						Statement.RETURN_GENERATED_KEYS);
+			} else {
+				stmt = conn.prepareStatement(
+						"UPDATE department SET idCampus=?, name=?, logo=?, active=?, site=?, fullName=?, initials=? WHERE idDepartment=?");
+			}
+
 			stmt.setInt(1, department.getCampus().getIdCampus());
 			stmt.setString(2, department.getName());
-			if(department.getLogo() == null){
+			if (department.getLogo() == null) {
 				stmt.setNull(3, Types.BINARY);
-			}else{
-				stmt.setBytes(3, department.getLogo());	
+			} else {
+				stmt.setBytes(3, department.getLogo());
 			}
 			stmt.setInt(4, department.isActive() ? 1 : 0);
 			stmt.setString(5, department.getSite());
 			stmt.setString(6, department.getFullName());
 			stmt.setString(7, department.getInitials());
 
-			if(!insert){
+			if (!insert) {
 				stmt.setInt(8, department.getIdDepartment());
 			}
 
 			stmt.execute();
 
-			if(insert){
-				try(ResultSet rs = stmt.getGeneratedKeys()){
-					if(rs.next()){
-    					department.setIdDepartment(rs.getInt(1));
-    					new UpdateEvent(conn).registerInsert(idUser, department);
-    				} else {
-    					new UpdateEvent(conn).registerUpdate(idUser, department);
-    				}
-				}
-			}
-			return department.getIdDepartment();
-		}
-    }
-    			
+			if (insert) {
+				rs = stmt.getGeneratedKeys();
 
-	private Department loadObject(ResultSet rs) throws SQLException{
+				if (rs.next()) {
+					department.setIdDepartment(rs.getInt(1));
+				}
+
+				new UpdateEvent(conn).registerInsert(idUser, department);
+			} else {
+				new UpdateEvent(conn).registerUpdate(idUser, department);
+			}
+
+			return department.getIdDepartment();
+		} finally {
+			if ((rs != null) && !rs.isClosed())
+				rs.close();
+			if ((stmt != null) && !stmt.isClosed())
+				stmt.close();
+			if ((conn != null) && !conn.isClosed())
+				conn.close();
+		}
+	}
+
+	@Override
+	Department loadObject(ResultSet rs) throws SQLException {
 		Department department = new Department();
-		
+
 		department.setIdDepartment(rs.getInt("idDepartment"));
 		department.getCampus().setIdCampus(rs.getInt("idCampus"));
 		department.setName(rs.getString("name"));
@@ -130,7 +126,8 @@ public class DepartmentDAO {
 		department.setSite(rs.getString("site"));
 		department.getCampus().setName(rs.getString("campusName"));
 		department.setInitials(rs.getString("initials"));
-		
+
 		return department;
-	}	
+	}
+
 }
